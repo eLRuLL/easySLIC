@@ -59,7 +59,7 @@ class Slic {
               CvScalar c1 = cvGet2D(image, j+1, i);
               CvScalar c2 = cvGet2D(image, j, i+1);
               CvScalar c3 = cvGet2D(image, j, i);
-              /* Convert colour values to grayscale values. */
+              /* get L values. */
               double i1 = c1.val[0];
               double i2 = c2.val[0];
               double i3 = c3.val[0];
@@ -88,14 +88,11 @@ class Slic {
           center_counts.clear();
         }
         void init_data(IplImage *image){
-          /* Initialize the cluster and distance matrices. */
-          for (int i = 0; i < image->width; i++) {
-            vector<int> cr;
-            vector<double> dr;
-            for (int j = 0; j < image->height; j++) {
-              cr.push_back(-1);
-              dr.push_back(FLT_MAX);
-            }
+          /* Initialize the cluster and distance matrices with default
+             values. */
+          for (int i = 0; i < image->width; ++i){
+            vector<int> cr(image->height, -1);
+            vector<double> dr(image->height, FLT_MAX);
             clusters.push_back(cr);
             distances.push_back(dr);
           }
@@ -104,7 +101,7 @@ class Slic {
           for (int i = step; i < image->width - step/2; i += step) {
             for (int j = step; j < image->height - step/2; j += step) {
               vector<double> center;
-              /* Find the local minimum (gradient-wise). */
+              /* Find the local minimum (gradient-wise on 3x3 space). */
               CvPoint nc = find_local_minimum(image, cvPoint(i,j));
               CvScalar colour = cvGet2D(image, nc.y, nc.x);
 
@@ -123,7 +120,6 @@ class Slic {
         }
 
     public:
-        /* Class constructors and deconstructors. */
         Slic(){};
         ~Slic(){clear_data();}
 
@@ -133,7 +129,7 @@ class Slic {
           this->nc = nc;
           this->ns = step;
 
-          /* Clear previous data (if any), and re-initialize it. */
+          // Clear previous data (if any), and re-initialize it.
           clear_data();
           init_data(image);
 
