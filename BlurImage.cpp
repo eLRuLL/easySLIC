@@ -25,7 +25,8 @@ int main( int argc, char** argv )
   int nr_superpixels = atoi(argv[2]);
   int nc = atoi(argv[3]);
 
-  double step = sqrt((w * h) / (double) nr_superpixels);
+  int step = sqrt((w * h) / (double) nr_superpixels);
+  cout<<"step: "<<step<<endl;
   Slic slic;
   slic.generate_superpixels(lab_image, step, nc);
   slic.create_connectivity(lab_image);
