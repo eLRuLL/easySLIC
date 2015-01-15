@@ -13,8 +13,10 @@
 
 #include <stdio.h>
 #include <float.h>
+#include <vector>
 
 #include "superpixels.h"
+
 
 cudaGraphicsResource *in_resource;
 cudaGraphicsResource *out_resource;
@@ -161,10 +163,45 @@ void interop_run(int M, int N, int hor, int vert) {
 
 	dim3 grid2(N,M);
 	dim3 block2(1,1);
-
-    for(int i=0; i<10; i++){
-	   update_cluster<<<grid2,block2>>>( in_image, clusters, centers_coords, centers_colors, ncenters);
+  int i,j,k;
+  for(i=0; i<10; ++i){
+    update_cluster<<<grid2,block2>>>( in_image, clusters, centers_coords, centers_colors, ncenters);
+    // clear center values
+    for(j=0;j<h_ncenters;++j){
+      centers_colors[i].x = centers_colors[i].y = centers_colors[i].z = 0.0f;
+      centers_coords[i].x = centers_coords[i].y = 0.0f;
     }
+
+    // compute new cluster centers
+    std::vector<int> center_counts(h_ncenters, 0);
+    for(j=0;j<M;++j){
+      for(k=0;k<N;++k){
+        int c_id = clusters[j + k*N];
+        if(c_id != -1){
+          uchar3 colour = in_image[j + k*N];
+          centers_colors[c_id].x += colour.x;
+          centers_colors[c_id].y += colour.y;
+          centers_colors[c_id].z += colour.z;
+
+          centers_coords[c_id].x += j;
+          centers_coords[c_id].y += k;
+
+          center_counts[c_id] += 1;
+        }
+      }
+    }
+
+    //normalize the clusters
+    for(j=0;j<h_ncenters;++j){
+      centers_colors[c_id].x /= center_counts[j];
+      centers_colors[c_id].y /= center_counts[j];
+      centers_colors[c_id].z /= center_counts[j];
+
+      centers_coords[c_id].x /= center_counts[j];
+      centers_coords[c_id].y /= center_counts[j];
+    }
+  }
+
 
 	cudaGraphicsUnmapResources( 1, &in_resource, NULL );
 	cudaGraphicsUnmapResources( 1, &out_resource, NULL );
