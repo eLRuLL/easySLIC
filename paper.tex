@@ -1,0 +1,27 @@
+\documentclass[11pt, oneside]{article}   	% use "amsart" instead of "article" for AMSLaTeX format
+\usepackage{geometry}                		% See geometry.pdf to learn the layout options. There are lots.
+\geometry{letterpaper}                   		% ... or a4paper or a5paper or ... 
+%\geometry{landscape}                		% Activate for for rotated page geometry
+%\usepackage[parfill]{parskip}    		% Activate to begin paragraphs with an empty line rather than an indent
+\usepackage{graphicx}				% Use pdf, png, jpg, or eps§ with pdflatex; use eps in DVI mode
+								% TeX will automatically convert eps --> pdf in pdflatex		
+\usepackage{amssymb}
+
+\title{Implementaci\'on del algoritm gSLIC}
+\author{Raul Gallegos, Juan Carlos Due\~nas}
+\date{\today}							% Activate to display a given date or no date
+\begin{document}
+\maketitle
+\begin{abstract}
+En este trabajo, se presenta la implementaci\'on del algoritmo ``gSLIC: a real-time implementation of SLIC superpixel segmentation'' de Carl Yuheng Ren and Ian Reid\cite{YHRen_gSLIC}.
+El algoritmo gSLIC introduce una implementaci\'on paralela de la segmentaci\'on SLIC. Esta implementaci\'on usa GPU con el framework de NVIDIA CUDA. Junto con la implementaci\'on en este trabajo tambi\'en presentaremos un video que demuestra como se aplica a un ambiente en tiempo real. 
+\end{abstract}
+
+\section{Introduction}
+El algoritmo Simple Linear Iterative Clustering (SLIC) para segmentaci\'on de superpixeles est\'a basado en el algoritmo de k-means para clustering de pixeles en un espacio en 5-d (labxy) definido por los valores L, a, b del espacio de color CIELAB y las coordenadas del pixel $x,y$.
+%\subsection{}
+
+
+\bibliography{mybib}{}
+\bibliographystyle{plain}
+\end{document}  
