@@ -21,6 +21,10 @@ cudaGraphicsResource *out_resource;
 uchar3* in_image;
 uchar3* out_image;
 
+int* d_centers;
+int* d_cluster_distances;
+int* d_cluster_matrix;
+
 __constant__ int img_width;
 __constant__ int img_height;
 
@@ -53,9 +57,29 @@ __device__ int2 find_local_minimum( uchar3 *image, int2 center, int index ){
 //     int i,j;
 // }
 
-// __global__ void generate_superpixels(){
+__device__ float compute_dist(uchar3 center_lab, int2 center_coords, int2 pixel, uchar3 color){
+  return 0.0f;
+}
 
-// }
+// remember to reset distances.
+__global__ void generate_superpixels(uchar3 *in_image,int height, int width int *clusters_matrix, int *clusters_distances, int2 *centers_coords, uchar3* centers_colours, int n){
+  int global_index;
+  int global_index_x;
+  int global_index_y;
+  int i;
+  int min_cluster_id;
+  float min_cluster_distance = FLT_MAX;
+
+  // solo deberia hacerlo con 9 cercanos
+  for(i=0;i<n;++i){
+    float _distance = compute_dist(centers_colours[i], centers_coords[i], int2(global_index_x, global_index_y), in_image[global_index]);
+    if(_distance < min_cluster_distance){
+      min_cluster_distance = _distance;
+      min_cluster_id = i;
+    }
+  }
+  clusters_matrix[global_index] = min_cluster_id;
+}
 
 __global__ void redkernel( uchar3 *in_image, uchar3 *out_image ) {
     int x = threadIdx.x + blockIdx.x * blockDim.x;
@@ -79,7 +103,7 @@ __global__ void GPU_invert( uchar3 *in_image, uchar3 *out_image ) {
 
 }
 
-void interop_setup(int M, int N) {
+void interop_setup(int M, int N, int number_superpixeles, int m_variable) {
 	cudaDeviceProp prop;
 	int dev;
 	memset( &prop, 0, sizeof( cudaDeviceProp ) );
@@ -89,6 +113,10 @@ void interop_setup(int M, int N) {
 	cudaGLSetGLDevice( dev );	// dev = 0
 	cudaMemcpyToSymbol(img_width,&M,1*sizeof(int),0,cudaMemcpyHostToDevice);
 	cudaMemcpyToSymbol(img_height,&N,1*sizeof(int),0,cudaMemcpyHostToDevice);
+
+  cudaMalloc(&d_centers, sizeof(int)*number_superpixeles);
+  cudaMalloc(&d_cluster_matrix, sizeof(int)*number_superpixeles);
+  cudaMalloc(&d_cluster_distances, sizeof(int)*number_superpixeles);
 }
 
 void interop_register_buffer(GLuint& in_buffer, GLuint& out_buffer){
@@ -110,8 +138,10 @@ void interop_run(int M, int N) {
 
 	dim3 grids(N,M);
 	dim3 threads(1,1);
-
-	redkernel<<<grids,threads>>>( in_image, out_image);
+	//redkernel<<<grids,threads>>>( in_image, out_image);
+  int nr_clusters;
+  generate_superpixels<<<grids,threads>>>( in_image, M, N, d_cluster_matrix, d_cluster_distances, d_centers, nr_clusters);
+  // luego hay q calcular los nuevos centros
 	cudaGraphicsUnmapResources( 1, &in_resource, NULL );
 	cudaGraphicsUnmapResources( 1, &out_resource, NULL );
 

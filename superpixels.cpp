@@ -66,7 +66,9 @@ int main( int argc, char **argv ) {
 	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, out_buffer );
 	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, M * N * C,NULL, GL_STREAM_DRAW_ARB );
 
-	interop_setup(M,N);
+	int nr_superpixeles = 100;
+	int m_variable = 40;
+	interop_setup(M,N, nr_superpixeles, m_variable);
 	interop_register_buffer(in_buffer, out_buffer);
 
 	// int nr_superpixels = 100;
@@ -105,8 +107,8 @@ int main( int argc, char **argv ) {
 
         // if(waitKey(1) == 27) //wait for 'esc' key press for 30 ms. If 'esc' key is pressed, break loop
         // {
-        //     cout << "esc key is pressed by user" << endl; 
-        //     break; 
+        //     cout << "esc key is pressed by user" << endl;
+        //     break;
         // }
 
         		// Flip Upside Down (warning: deprecated functions)
