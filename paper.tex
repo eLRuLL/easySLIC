@@ -6,6 +6,11 @@
 \usepackage{graphicx}				% Use pdf, png, jpg, or eps§ with pdflatex; use eps in DVI mode
 								% TeX will automatically convert eps --> pdf in pdflatex		
 \usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{algorithm}
+%\usepackage{algorithmic}
+\usepackage{algpseudocode}
+
 
 \title{Implementaci\'on del algoritm gSLIC}
 \author{Raul Gallegos, Juan Carlos Due\~nas}
@@ -18,7 +23,39 @@ El algoritmo gSLIC introduce una implementaci\'on paralela de la segmentaci\'on 
 \end{abstract}
 
 \section{Introduction}
-El algoritmo Simple Linear Iterative Clustering (SLIC) para segmentaci\'on de superpixeles est\'a basado en el algoritmo de k-means para clustering de pixeles en un espacio en 5-d (labxy) definido por los valores L, a, b del espacio de color CIELAB y las coordenadas del pixel $x,y$.
+El algoritmo Simple Linear Iterative Clustering (SLIC) para segmentaci\'on de superpixeles est\'a basado en el algoritmo de k-means para clustering de pixeles en un espacio en 5-d (labxy) definido por los valores L, a, b del espacio de color CIELAB y las coordenadas del pixel $x,y$. El espacio CIELAB fue escogido ya que se percibe mejor para distancias pequeñas de colores. En vez de usar la distancia euclidiana directamente en el espacio 5-d, se introduce la siguiente función de distancia entre pixeles.
+$$
+d_{lab}=\sqrt{(l_k-l_i)^2+(a_k-a_i)^2+(n_k-b_i)^2}
+$$
+$$
+d_{xy}=\sqrt{(x_k-x_i)^2+(y_k-y_i)^2}
+$$
+$$
+D_s=d_{lab}+\frac{m}{S}d_{xy}
+$$
+
+Donde $S = \sqrt{\frac{N}{K}}$, $N=$ n\'umero de pixeles en la imagen y $K=$ n\'umero de superpixeles deseados (par\'ametro). El par\'ametro $m$ es introducido para controlar cuan compactos son los superpixeles. Mientras m\'as grande sea el $m$, m\'as compacto el cluster. A continuaci\'on se presenta el algoritmo modificado SLIC para que funcione cada thread con un pixel (Algoritm \ref{algo}).
+\begin{algorithm}
+\caption{Algoritmo SLIC modificado}
+\label{algo}
+\begin{algorithmic}[1]
+\State{Inicializar centros de los clusters $[l_k,a_k,b_k,x_k,y_k]^T$ con pixeles ejemplo cada $S$ pixeles.}
+\State{Perturbar los centros de los clusters hacia la posición de menor gradiente}
+\For{cada pixel}
+    \State{Asigna el pixel al cluster m\'as cercano}
+\EndFor
+\While{N\'umero de iteraciones}
+\For{cada pixel}
+\State{Localmente busca la m\'as cercana de 9 cl\'usteres vecinos}
+\State{etiqueta este pixel con el cluster m\'as cercano}
+\EndFor
+\State{Actualiza cada centro de cluster basado en asignamiento de pixeles.}
+\EndWhile
+\State{Forca conectividad}
+\end{algorithmic}
+\end{algorithm}
+
+
 %\subsection{}
 
 
