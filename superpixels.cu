@@ -23,14 +23,22 @@ uchar3* out_image;
 
 __constant__ int img_width;
 __constant__ int img_height;
+__constant__ int step;
+__constant__ int ncenters;
 
-__device__ int2 find_local_minimum( uchar3 *image, int2 center, int index ){
+uchar3 *centers_colors;
+int2 *centers_coords;
+int *clusters;
+float *distances;
+
+__device__ int2 find_local_minimum( uchar3 *image, int2 center){
     int i,j;
     float min_grad = FLT_MAX;
     int2 loc_min = center;
 
     for (i = center.x-1; i < center.x+2; ++i) {
         for (j = center.y-1; j < center.y+2; ++j) {
+          int index = i + j * img_width;
           /* get L values. */
           unsigned char i1 = image[index+1].x;
           unsigned char i2 = image[index+img_width].x;
@@ -45,41 +53,62 @@ __device__ int2 find_local_minimum( uchar3 *image, int2 center, int index ){
           }
         }
       }
-
       return loc_min;
 }
 
-// __global__ void init_data( uchar3* image ){
-//     int i,j;
-// }
+__global__ void init_data( uchar3* image , int* clusters, uchar3 *centers_colors, int2 *centers_coords){
+    int x = (threadIdx.x + 1)*step;
+    int y = (threadIdx.y + 1)*step;
 
-// __global__ void generate_superpixels(){
+    int2 newc = find_local_minimum(image, make_int2(x,y));
+    uchar3 colour = image[x + y*img_width];
 
-// }
+    int offset = threadIdx.x + threadIdx.y*blockDim.x;
+    centers_colors[offset] = colour;
+    centers_coords[offset] = newc;
 
-__global__ void redkernel( uchar3 *in_image, uchar3 *out_image ) {
-    int x = threadIdx.x + blockIdx.x * blockDim.x;
-    int y = threadIdx.y + blockIdx.y * blockDim.y;
-    int offset = x + y * blockDim.x * gridDim.x;
-
-    out_image[offset].x = 255;
-    out_image[offset].y = 0;
-    out_image[offset].z = 0;
+    image[newc.x + newc.y*img_width].x = 0;
+    image[newc.x + newc.y*img_width].y = 0;
+    image[newc.x + newc.y*img_width].z = 255;
 
 }
 
-__global__ void GPU_invert( uchar3 *in_image, uchar3 *out_image ) {
-	int x = threadIdx.x + blockIdx.x * blockDim.x;
-	int y = threadIdx.y + blockIdx.y * blockDim.y;
-	int offset = x + y * blockDim.x * gridDim.x;
+__device__ float compute_dist(uchar3 center_lab, int2 center_coords, int2 pixel, uchar3 colour){
+  float dc = sqrtf(powf(center_lab.x - colour.x, 2) + powf(center_lab.y - colour.y, 2) + powf(center_lab.z - colour.z, 2));
+  float ds = sqrtf(powf(center_coords.x - pixel.x, 2) + powf(center_coords.y - pixel.y, 2));
+  float m = 40.0; // ESTO DEBE SER GLOBAL O PARAM
+  float K = 100.0; // TAMBIEN GLOBAL O PARAM (NUMERO DE SUPERPIXELES)
+  float N = 100.0; // ACTUALIZAR CON EL NUMERO DE PIXELES (WIDTH * HEIGHT)
+  float S_value = sqrt(N/K);
 
-	out_image[offset].x = 255 - in_image[offset].x;
-	out_image[offset].y = 255 - in_image[offset].y;
-	out_image[offset].z = 255 - in_image[offset].z;
-
+  return dc + (m/S_value)*ds;
 }
 
-void interop_setup(int M, int N) {
+// remember to reset distances.
+__global__ void update_cluster(uchar3 *image, int *clusters, int2 *centers_coords, uchar3* centers_colors, int n){
+  int x = threadIdx.x + blockIdx.x * blockDim.x;
+  int y = threadIdx.y + blockIdx.y * blockDim.y;
+  int index = x + y * blockDim.x * gridDim.x;
+
+  int i;
+  int min_cluster_id;
+  float min_cluster_distance = FLT_MAX;
+
+  // solo deberia hacerlo con 9 cercanos
+  for(i=0;i<ncenters;++i){
+    float _distance = compute_dist(centers_colors[i], centers_coords[i], make_int2(x, y), image[index]);
+    if(_distance < min_cluster_distance){
+      min_cluster_distance = _distance;
+      min_cluster_id = i;
+    }
+  }
+  clusters[index] = min_cluster_id;
+}
+
+
+
+
+void interop_setup(int M, int N, int h_ncenters, int h_step, int nc) {
 	cudaDeviceProp prop;
 	int dev;
 	memset( &prop, 0, sizeof( cudaDeviceProp ) );
@@ -87,8 +116,26 @@ void interop_setup(int M, int N) {
 	prop.minor = 0;
 	cudaChooseDevice( &dev, &prop );
 	cudaGLSetGLDevice( dev );	// dev = 0
-	cudaMemcpyToSymbol(img_width,&M,1*sizeof(int),0,cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol(img_height,&N,1*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(img_height,&M,1*sizeof(int),0,cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(img_width,&N,1*sizeof(int),0,cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(ncenters,&h_ncenters,1*sizeof(int),0,cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(step,&h_step,1*sizeof(int),0,cudaMemcpyHostToDevice);
+
+    int *hclusters = new int[M*N];
+    for(int i=0; i<M*N; i++)
+        hclusters[i] = -1;
+    cudaMalloc(&clusters, M*N*sizeof(int));
+    cudaMemcpy(clusters,hclusters,M*N*sizeof(int),cudaMemcpyHostToDevice);
+
+    float *hdistances = new float[M*N];
+    for(int i=0; i<M*N; i++)
+        hdistances[i] = FLT_MAX;
+    cudaMalloc(&distances, M*N*sizeof(float));
+    cudaMemcpy(distances,hdistances,M*N*sizeof(float),cudaMemcpyHostToDevice);
+
+    cudaMalloc(&centers_colors, h_ncenters*sizeof(uchar3));
+    cudaMalloc(&centers_coords, h_ncenters*sizeof(int2));
+
 }
 
 void interop_register_buffer(GLuint& in_buffer, GLuint& out_buffer){
@@ -106,12 +153,19 @@ void interop_map() {
 	cudaGraphicsResourceGetMappedPointer( (void**)&out_image,&out_size,out_resource ) ;
 }
 
-void interop_run(int M, int N) {
+void interop_run(int M, int N, int hor, int vert) {
 
-	dim3 grids(N,M);
-	dim3 threads(1,1);
+    dim3 grid1(1,1);
+    dim3 block1(hor,vert);
+    init_data<<<grid1,block1>>>(in_image, clusters, centers_colors, centers_coords);
 
-	redkernel<<<grids,threads>>>( in_image, out_image);
+	dim3 grid2(N,M);
+	dim3 block2(1,1);
+
+    for(int i=0; i<10; i++){
+	   update_cluster<<<grid2,block2>>>( in_image, clusters, centers_coords, centers_colors, ncenters);
+    }
+
 	cudaGraphicsUnmapResources( 1, &in_resource, NULL );
 	cudaGraphicsUnmapResources( 1, &out_resource, NULL );
 

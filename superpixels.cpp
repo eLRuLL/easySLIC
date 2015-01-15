@@ -11,6 +11,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 using namespace cv;
+using namespace std;
 
 GLuint in_buffer;
 GLuint out_buffer;
@@ -48,8 +49,6 @@ int main( int argc, char **argv ) {
     N = cap.get(CV_CAP_PROP_FRAME_WIDTH);
     int C = img->channels();
 
-
-
 	// these GLUT calls need to be made before the other GL calls
 	glutInit( &argc, argv );
 	glutInitDisplayMode( GLUT_DOUBLE | GLUT_RGBA );
@@ -66,12 +65,16 @@ int main( int argc, char **argv ) {
 	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, out_buffer );
 	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, M * N * C,NULL, GL_STREAM_DRAW_ARB );
 
-	interop_setup(M,N);
-	interop_register_buffer(in_buffer, out_buffer);
+	int nr_superpixels = 100;
+	int nc = 40;
+  	int step = sqrt((M * N) / (double) nr_superpixels);
 
-	// int nr_superpixels = 100;
-	// int nc = 40;
- //  	int step = sqrt((M * N) / (double) nr_superpixels);
+  	int hor = (N - step/2)/step;
+  	int vert = (M - step/2)/step;
+  	int ncenters = hor*vert;
+
+  	interop_setup(M,N, ncenters, step, nc);
+	interop_register_buffer(in_buffer, out_buffer);
 
 	// int ticks = 0;
 	// Slic slic;
@@ -98,7 +101,7 @@ int main( int argc, char **argv ) {
 		  // slic.display_contours(image, CV_RGB(255,0,0));
 
         interop_map();
-        interop_run(M,N);
+        interop_run(M,N,hor,vert);
 
         // imshow("MyWindow", *image);
         // waitKey(0);
@@ -114,16 +117,16 @@ int main( int argc, char **argv ) {
 		glPixelZoom( 1, -1 );
 
 		// glDrawPixels is also deprecated, use textures instead
-		glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, out_buffer );
+		// glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, out_buffer );
 		glDrawPixels( N, M, GL_BGR, GL_UNSIGNED_BYTE, 0 );
 		glutSwapBuffers();
 
     }
 	// set up GLUT and kick off main loop
 	// glutKeyboardFunc( key_func );
-	glutMainLoop();
+	// glutMainLoop();
 	// glutDisplayFunc( draw_func );
-
+	exit(0);
     delete img;
 
 	return 0;
