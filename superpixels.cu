@@ -57,12 +57,19 @@ __device__ int2 find_local_minimum( uchar3 *image, int2 center, int index ){
 //     int i,j;
 // }
 
-__device__ float compute_dist(uchar3 center_lab, int2 center_coords, int2 pixel, uchar3 color){
-  return 0.0f;
+__device__ float compute_dist(uchar3 center_lab, int2 center_coords, int2 pixel, uchar3 colour){
+  double dc = sqrt(pow(center_lab.x - colour.x, 2) + pow(center_lab.y - colour.y, 2) + pow(center_lab.z - colour.z, 2));
+  double ds = sqrt(pow(centers_coords.x - pixel.x, 2) + pow(center_coords.y - pixel.y, 2));
+  double m = 40.0; // ESTO DEBE SER GLOBAL O PARAM
+  double K = 100.0; // TAMBIEN GLOBAL O PARAM (NUMERO DE SUPERPIXELES)
+  double N = 100.0; // ACTUALIZAR CON EL NUMERO DE PIXELES (WIDTH * HEIGHT)
+  double S_value = sqrt(N/K);
+
+  return dc + (m_value/S_value)*ds;
 }
 
 // remember to reset distances.
-__global__ void generate_superpixels(uchar3 *in_image,int height, int width int *clusters_matrix, int *clusters_distances, int2 *centers_coords, uchar3* centers_colours, int n){
+__global__ void update_cluster(uchar3 *in_image,int height, int width int *clusters_matrix, int *clusters_distances, int2 *centers_coords, uchar3* centers_colours, int n){
   int global_index;
   int global_index_x;
   int global_index_y;
@@ -140,7 +147,7 @@ void interop_run(int M, int N) {
 	dim3 threads(1,1);
 	//redkernel<<<grids,threads>>>( in_image, out_image);
   int nr_clusters;
-  generate_superpixels<<<grids,threads>>>( in_image, M, N, d_cluster_matrix, d_cluster_distances, d_centers, nr_clusters);
+  update_cluster<<<grids,threads>>>( in_image, M, N, d_cluster_matrix, d_cluster_distances, d_centers, nr_clusters);
   // luego hay q calcular los nuevos centros
 	cudaGraphicsUnmapResources( 1, &in_resource, NULL );
 	cudaGraphicsUnmapResources( 1, &out_resource, NULL );
