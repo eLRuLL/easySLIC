@@ -37,8 +37,11 @@ class Slic {
         /* The step size per cluster, and the colour (nc) and distance (ns)
          * parameters. */
         int step, nc, ns;
+        int N;
 
-        /* Compute the distance between a center and an individual pixel. */
+        /* Compute the distance between a center and an individual pixel.
+          Equation 1
+        */
         double compute_dist(int ci, CvPoint pixel, CvScalar colour){
           double dc = sqrt(pow(centers[ci][0] - colour.val[0], 2) + pow(centers[ci][1]
           - colour.val[1], 2) + pow(centers[ci][2] - colour.val[2], 2));
@@ -46,16 +49,25 @@ class Slic {
 
           return sqrt(pow(dc / nc, 2) + pow(ds / ns, 2));
 
-          //double w = 1.0 / (pow(ns / nc, 2));
+          //double m_value = 10.0;
+          /* S = sqrt(N/K)
+            * N = number of pixels.
+            * K = number of superpixels.
+          */
+          //double S_value = sqrt(N/K);
+          //return dc + (m_value/S_value)*ds;
+
+          //double w = m_value / (pow(ns / nc, 2));
           //return sqrt(dc) + sqrt(ds * w);
         }
         /* Find the pixel with the lowest gradient in a 3x3 surrounding. */
         CvPoint find_local_minimum(IplImage *image, CvPoint center){
+          int i,j;
           double min_grad = FLT_MAX;
           CvPoint loc_min = cvPoint(center.x, center.y);
 
-          for (int i = center.x-1; i < center.x+2; i++) {
-            for (int j = center.y-1; j < center.y+2; j++) {
+          for (i = center.x-1; i < center.x+2; ++i) {
+            for (j = center.y-1; j < center.y+2; ++j) {
               CvScalar c1 = cvGet2D(image, j+1, i);
               CvScalar c2 = cvGet2D(image, j, i+1);
               CvScalar c3 = cvGet2D(image, j, i);
@@ -87,10 +99,18 @@ class Slic {
           centers.clear();
           center_counts.clear();
         }
+
+        /* Initializes:
+          * centers
+          * center_counts
+          * clusters
+          * distances
+          */
         void init_data(IplImage *image){
+          int i,j;
           /* Initialize the cluster and distance matrices with default
-             values. */
-          for (int i = 0; i < image->width; ++i){
+             values for each pixel. */
+          for (i = 0; i < image->width; ++i){
             vector<int> cr(image->height, -1);
             vector<double> dr(image->height, FLT_MAX);
             clusters.push_back(cr);
@@ -98,8 +118,8 @@ class Slic {
           }
 
           /* Initialize the centers and counters. */
-          for (int i = step; i < image->width - step/2; i += step) {
-            for (int j = step; j < image->height - step/2; j += step) {
+          for (i = step; i < image->width - step/2; i += step) {
+            for (j = step; j < image->height - step/2; j += step) {
               vector<double> center;
               /* Find the local minimum (gradient-wise on 3x3 space). */
               CvPoint nc = find_local_minimum(image, cvPoint(i,j));
@@ -125,6 +145,9 @@ class Slic {
 
         /* Generate an over-segmentation for an image. */
         void generate_superpixels(IplImage *image, int step, int nc){
+          //K = nr_superpixels;
+          N = image->width * image->height;
+          int i,j,k,l;
           this->step = step;
           this->nc = nc;
           this->ns = step;
@@ -133,19 +156,19 @@ class Slic {
           clear_data();
           init_data(image);
 
-          /* Run EM for 10 iterations (as prescribed by the algorithm). */
-          for (int i = 0; i < NR_ITERATIONS; i++) {
+          /* Run for 10 iterations (as described by the algorithm). */
+          for (i = 0; i < NR_ITERATIONS; ++i) {
+
             /* Reset distance values. */
-            for (int j = 0; j < image->width; j++) {
-              for (int k = 0;k < image->height; k++) {
+            for (j = 0; j < image->width; ++j) {
+              for (k = 0;k < image->height; ++k) {
                 distances[j][k] = FLT_MAX;
               }
             }
-
-            for (int j = 0; j < (int) centers.size(); j++) {
-              /* Only compare to pixels in a 2 x step by 2 x step region. */
-              for (int k = centers[j][3] - step; k < centers[j][3] + step; k++) {
-                for (int l = centers[j][4] - step; l < centers[j][4] + step; l++) {
+            for (j = 0; j < (int) centers.size(); ++j) {
+              /* Only comparing to pixels in a 2 x step by 2 x step region. */
+              for (k = centers[j][3] - step; k < centers[j][3] + step; ++k) {
+                for (l = centers[j][4] - step; l < centers[j][4] + step; ++l) {
 
                   if (k >= 0 && k < image->width && l >= 0 && l < image->height) {
                     CvScalar colour = cvGet2D(image, l, k);
@@ -163,14 +186,14 @@ class Slic {
             }
 
             /* Clear the center values. */
-            for (int j = 0; j < (int) centers.size(); j++) {
+            for (j = 0; j < (int) centers.size(); ++j) {
               centers[j][0] = centers[j][1] = centers[j][2] = centers[j][3] = centers[j][4] = 0;
               center_counts[j] = 0;
             }
 
             /* Compute the new cluster centers. */
-            for (int j = 0; j < image->width; j++) {
-              for (int k = 0; k < image->height; k++) {
+            for (j = 0; j < image->width; ++j) {
+              for (k = 0; k < image->height; ++k) {
                 int c_id = clusters[j][k];
 
                 if (c_id != -1) {
@@ -188,7 +211,7 @@ class Slic {
             }
 
             /* Normalize the clusters. */
-            for (int j = 0; j < (int) centers.size(); j++) {
+            for (j = 0; j < (int) centers.size(); ++j) {
               centers[j][0] /= center_counts[j];
               centers[j][1] /= center_counts[j];
               centers[j][2] /= center_counts[j];
