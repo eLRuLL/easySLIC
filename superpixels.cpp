@@ -1,14 +1,9 @@
 #define GL_GLEXT_PROTOTYPES
 #include <GL/glut.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <iostream>
-#define DIM 512
-#include "superpixels.h"
-#include "slic.h"
-
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include "superpixels.h"
 
 using namespace cv;
 using namespace std;
@@ -21,18 +16,6 @@ GLuint centercolor_buffer;
 GLuint centercoord_buffer;
 GLuint centercount_buffer;
 int M,N;
-
-static void key_func( unsigned char key, int x, int y ) {
-	switch (key) {
-	case 27:
-	// clean up OpenGL and CUDA
-	// interop_cleanup();
-	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, 0 );
-	glDeleteBuffers( 1, &in_buffer );
-	glDeleteBuffers( 1, &out_buffer );
-	exit(0);
-	}
-}
 
 int main( int argc, char **argv ) {
 
@@ -104,7 +87,6 @@ int main( int argc, char **argv ) {
   	interop_setup(M,N, nr_superpixels, nc, step, ncenters);
 	interop_register_buffer(in_buffer, out_buffer, cluster_buffer, distance_buffer, centercolor_buffer, centercoord_buffer, centercount_buffer);
 
-	// int ticks = 0;
     while(1)
     {
     	// VIDEO
@@ -123,9 +105,6 @@ int main( int argc, char **argv ) {
         interop_map();
         interop_run(M,N,hor,vert, ncenters, nr_iterations, imgdata);
 
-        // imshow("MyWindow", *img);
-        // waitKey(0);
-
         // Flip Upside Down (warning: deprecated functions)
 		glRasterPos2f(-1,1);
 		glPixelZoom( 1, -1 );
@@ -137,12 +116,6 @@ int main( int argc, char **argv ) {
 
     }
 	// set up GLUT and kick off main loop
-	// glutKeyboardFunc( key_func );
-	// glutMainLoop();
-	// glutDisplayFunc( draw_func );
-
-	// int x;
-	// cin >> x;
 
 	exit(0);
     delete img;
