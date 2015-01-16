@@ -36,18 +36,19 @@ static void key_func( unsigned char key, int x, int y ) {
 
 int main( int argc, char **argv ) {
 
- //    Mat* img;
- //    img = new Mat(imread(argv[1]));
-	// unsigned char *imgdata = (unsigned char*)(img->data);
- //    M = img->rows;
- //    N = img->cols;
- //    int C = img->channels();
+// // IMAGE
+//     Mat* img;
+//     img = new Mat(imread(argv[1]));
+//     unsigned char *imgdata = (unsigned char*)(img->data);
+//     M = img->rows;
+//     N = img->cols;
+//     int C = img->channels();
 
+// VIDEO
 	VideoCapture cap(argv[1]);
     Mat* img;
     img = new Mat(Mat::zeros(cap.get(CV_CAP_PROP_FRAME_WIDTH),cap.get(CV_CAP_PROP_FRAME_HEIGHT),CV_8UC3));
 	unsigned char *imgdata;
-
     M = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
     N = cap.get(CV_CAP_PROP_FRAME_WIDTH);
     int C = img->channels();
@@ -59,15 +60,18 @@ int main( int argc, char **argv ) {
 	glutCreateWindow( "bitmap" );
 
 
-	int nr_superpixels = 100;
-	int nc = 40;
+	int nr_superpixels = atoi(argv[2]);
+	int nc = atoi(argv[3]);
   	int step = sqrt((M * N) / (double) nr_superpixels);
 
   	int hor = (N - step/2)/step;
   	int vert = (M - step/2)/step;
   	int ncenters = hor*vert;
 
+  	int nr_iterations = atoi(argv[4]);
+
   	cout << "Clusters: " << ncenters << endl;
+  	cout << "Step: " << step << endl;
 
 	glGenBuffers( 1, &in_buffer );
 	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, in_buffer );
@@ -97,15 +101,14 @@ int main( int argc, char **argv ) {
 	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, centercount_buffer );
 	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, ncenters * sizeof(int),NULL, GL_DYNAMIC_DRAW_ARB );
 
-  	interop_setup(M,N, ncenters, step, nc);
+  	interop_setup(M,N, nr_superpixels, nc, step, ncenters);
 	interop_register_buffer(in_buffer, out_buffer, cluster_buffer, distance_buffer, centercolor_buffer, centercoord_buffer, centercount_buffer);
 
 	// int ticks = 0;
-	// Slic slic;
     while(1)
     {
+    	// VIDEO
         bool bSuccess = cap.read(*img);
-
         if (!bSuccess) //if not success, break loop
         {
             cout << "Cannot read the frame from video file" << endl;
@@ -118,9 +121,9 @@ int main( int argc, char **argv ) {
         glBufferSubData( GL_PIXEL_UNPACK_BUFFER_ARB, 0,  M * N * C,imgdata);
 
         interop_map();
-        interop_run(M,N,hor,vert, ncenters, imgdata);
+        interop_run(M,N,hor,vert, ncenters, nr_iterations, imgdata);
 
-        // imshow("MyWindow", *image);
+        // imshow("MyWindow", *img);
         // waitKey(0);
 
         // Flip Upside Down (warning: deprecated functions)
@@ -137,9 +140,16 @@ int main( int argc, char **argv ) {
 	// glutKeyboardFunc( key_func );
 	// glutMainLoop();
 	// glutDisplayFunc( draw_func );
+
+	// int x;
+	// cin >> x;
+
 	exit(0);
     delete img;
     interop_cleanup();
+	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, 0 );
+	glDeleteBuffers( 1, &in_buffer );
+	glDeleteBuffers( 1, &out_buffer );
 
 	return 0;
 }
