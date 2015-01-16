@@ -1,7 +1,9 @@
+#include <time.h>
 #include <cv.h>
 #include <highgui.h>
 #include <iostream>
 #include "slic.h"
+
 
 using namespace cv;
 using namespace std;
@@ -26,13 +28,14 @@ int main( int argc, char** argv )
   int nc = atoi(argv[3]);
 
   int step = sqrt((w * h) / (double) nr_superpixels);
-  cout<<"step: "<<step<<endl;
+  const clock_t begin_time = clock();
   Slic slic;
   slic.generate_superpixels(lab_image, step, nc);
-  slic.create_connectivity(lab_image);
+  //slic.create_connectivity(lab_image);
 
   /* Display the contours and show the result. */
   slic.display_contours(image, CV_RGB(255,0,0));
+  std::cout << float( clock () - begin_time ) /  CLOCKS_PER_SEC<<std::endl;
   cvShowImage("result", image);
   cvWaitKey(0);
   cvSaveImage(argv[4], image);

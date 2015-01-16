@@ -47,15 +47,15 @@ class Slic {
           - colour.val[1], 2) + pow(centers[ci][2] - colour.val[2], 2));
           double ds = sqrt(pow(centers[ci][3] - pixel.x, 2) + pow(centers[ci][4] - pixel.y, 2));
 
-          return sqrt(pow(dc / nc, 2) + pow(ds / ns, 2));
+          //return sqrt(pow(dc / nc, 2) + pow(ds / ns, 2));
 
-          //double m_value = 10.0;
-          /* S = sqrt(N/K)
-            * N = number of pixels.
-            * K = number of superpixels.
-          */
-          //double S_value = sqrt(N/K);
-          //return dc + (m_value/S_value)*ds;
+          double m_value = 40.0;
+          //  S = sqrt(N/K)
+          //    N = number of pixels.
+          //    K = number of superpixels.
+          double K = 100;
+          double S_value = sqrt(N/K);
+          return dc + (m_value/S_value)*ds;
 
           //double w = m_value / (pow(ns / nc, 2));
           //return sqrt(dc) + sqrt(ds * w);
