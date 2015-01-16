@@ -15,6 +15,11 @@ using namespace std;
 
 GLuint in_buffer;
 GLuint out_buffer;
+GLuint cluster_buffer;
+GLuint distance_buffer;
+GLuint centercolor_buffer;
+GLuint centercoord_buffer;
+GLuint centercount_buffer;
 int M,N;
 
 static void key_func( unsigned char key, int x, int y ) {
@@ -42,8 +47,6 @@ int main( int argc, char **argv ) {
     Mat* img;
     img = new Mat(Mat::zeros(cap.get(CV_CAP_PROP_FRAME_WIDTH),cap.get(CV_CAP_PROP_FRAME_HEIGHT),CV_8UC3));
 	unsigned char *imgdata;
-	// IplImage *image = new IplImage(*img);
-	// IplImage *lab_image = cvCloneImage(image);
 
     M = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
     N = cap.get(CV_CAP_PROP_FRAME_WIDTH);
@@ -56,6 +59,15 @@ int main( int argc, char **argv ) {
 	glutCreateWindow( "bitmap" );
 
 
+	int nr_superpixels = 100;
+	int nc = 40;
+  	int step = sqrt((M * N) / (double) nr_superpixels);
+
+  	int hor = (N - step/2)/step;
+  	int vert = (M - step/2)/step;
+  	int ncenters = hor*vert;
+
+  	cout << "Clusters: " << ncenters << endl;
 
 	glGenBuffers( 1, &in_buffer );
 	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, in_buffer );
@@ -65,16 +77,28 @@ int main( int argc, char **argv ) {
 	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, out_buffer );
 	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, M * N * C,NULL, GL_STREAM_DRAW_ARB );
 
-	int nr_superpixels = 100;
-	int nc = 40;
-  	int step = sqrt((M * N) / (double) nr_superpixels);
+	glGenBuffers( 1, &cluster_buffer );
+	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, cluster_buffer );
+	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, M * N * sizeof(int),NULL, GL_DYNAMIC_DRAW_ARB );
 
-  	int hor = (N - step/2)/step;
-  	int vert = (M - step/2)/step;
-  	int ncenters = hor*vert;
+	glGenBuffers( 1, &distance_buffer );
+	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, distance_buffer );
+	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, M * N * sizeof(float),NULL, GL_DYNAMIC_DRAW_ARB );
+
+	glGenBuffers( 1, &centercolor_buffer );
+	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, centercolor_buffer );
+	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, ncenters * 3 * sizeof(float),NULL, GL_DYNAMIC_DRAW_ARB );
+
+	glGenBuffers( 1, &centercoord_buffer );
+	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, centercoord_buffer );
+	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, ncenters * 2 * sizeof(int),NULL, GL_DYNAMIC_DRAW_ARB );
+
+	glGenBuffers( 1, &centercount_buffer );
+	glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, centercount_buffer );
+	glBufferData( GL_PIXEL_UNPACK_BUFFER_ARB, ncenters * sizeof(int),NULL, GL_DYNAMIC_DRAW_ARB );
 
   	interop_setup(M,N, ncenters, step, nc);
-	interop_register_buffer(in_buffer, out_buffer);
+	interop_register_buffer(in_buffer, out_buffer, cluster_buffer, distance_buffer, centercolor_buffer, centercoord_buffer, centercount_buffer);
 
 	// int ticks = 0;
 	// Slic slic;
@@ -88,31 +112,18 @@ int main( int argc, char **argv ) {
             break;
         }
 
-        // image = new IplImage(*img);
-        // cvtColor(image, lab_image, CV_BGR2Lab);
-        // unsigned char *imgdata = (unsigned char*)(IplImage(img)->data);
-
+        cvtColor(*img, *img, CV_BGR2Lab);
         imgdata = (unsigned char*)(img->data);
 		glBindBuffer( GL_PIXEL_UNPACK_BUFFER_ARB, in_buffer );
         glBufferSubData( GL_PIXEL_UNPACK_BUFFER_ARB, 0,  M * N * C,imgdata);
 
-		// slic.generate_superpixels(lab_image, step, nc);
-		  // slic.create_connectivity(lab_image);
-		  // slic.display_contours(image, CV_RGB(255,0,0));
-
         interop_map();
-        interop_run(M,N,hor,vert);
+        interop_run(M,N,hor,vert, ncenters, imgdata);
 
         // imshow("MyWindow", *image);
         // waitKey(0);
 
-        // if(waitKey(1) == 27) //wait for 'esc' key press for 30 ms. If 'esc' key is pressed, break loop
-        // {
-        //     cout << "esc key is pressed by user" << endl; 
-        //     break; 
-        // }
-
-        		// Flip Upside Down (warning: deprecated functions)
+        // Flip Upside Down (warning: deprecated functions)
 		glRasterPos2f(-1,1);
 		glPixelZoom( 1, -1 );
 
@@ -128,6 +139,7 @@ int main( int argc, char **argv ) {
 	// glutDisplayFunc( draw_func );
 	exit(0);
     delete img;
+    interop_cleanup();
 
 	return 0;
 }
