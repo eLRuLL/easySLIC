@@ -12,6 +12,7 @@
 \usepackage{algorithm}
 %\usepackage{algorithmic}
 \usepackage{algpseudocode}
+\usepackage{hyperref}
 
 
 \title{Implementaci\'on del algoritm gSLIC}
@@ -20,7 +21,7 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-En este trabajo, se presenta la implementaci\'on del algoritmo ``gSLIC: a real-time implementation of SLIC superpixel segmentation'' de Carl Yuheng Ren and Ian Reid\cite{YHRen_gSLIC}.
+En este trabajo, se presenta la implementaci\'on del algoritmo ``gSLIC: a real-time implementation of SLIC superpixel segmentation'' de Carl Yuheng Ren y Ian Reid\cite{YHRen_gSLIC}.
 El algoritmo gSLIC introduce una implementaci\'on paralela de la segmentaci\'on SLIC. Esta implementaci\'on usa GPU con el framework de NVIDIA CUDA. Junto con la implementaci\'on en este trabajo tambi\'en presentaremos un video que demuestra como se aplica a un ambiente en tiempo real. 
 \end{abstract}
 
@@ -57,12 +58,12 @@ Donde $S = \sqrt{\frac{N}{K}}$, $N=$ n\'umero de pixeles en la imagen y $K=$ n\'
 \end{algorithmic}
 \end{algorithm}
 
-\section{Resultados}
+\section{Resultados SLIC}
 
 Primero para probar la t\'ecnica y asegurarnos que el algoritmo funcionaba antes de hacerlo en GPU, probamos el algoritmo SLIC en CPU con diferentes im\'agenes. Mostramos resultados en las Figuras 1,2 y 3.
 
 
-\begin{figure}
+\begin{figure}[H]
 \label{fig1}
 \centering
 \begin{subfigure}[b]{0.49\textwidth}
@@ -78,7 +79,7 @@ Primero para probar la t\'ecnica y asegurarnos que el algoritmo funcionaba antes
 \caption{[SLIC] La generaci\'on de superpixeles demor\'o 13.2884 seg.}
 \end{figure}
 
-\begin{figure}
+\begin{figure}[H]
 \label{fig2}
 \centering
 \begin{subfigure}[b]{0.49\textwidth}
@@ -95,7 +96,7 @@ Primero para probar la t\'ecnica y asegurarnos que el algoritmo funcionaba antes
 \end{figure}
 
 
-\begin{figure}
+\begin{figure}[H]
 \label{fig3}
 \centering
 \begin{subfigure}[b]{0.49\textwidth}
@@ -111,7 +112,46 @@ Primero para probar la t\'ecnica y asegurarnos que el algoritmo funcionaba antes
 \caption{[SLIC] La generaci\'on de superpixeles demor\'o 0.273571 seg.}
 \end{figure}
 
-%\subsection{}
+\section{Resultados gSLIC}
+
+\begin{figure}
+\label{fig4}
+\centering
+\begin{subfigure}[b]{0.3\textwidth}
+\label{la1}
+\caption{Imagen original (de video)}
+\includegraphics[width=\textwidth]{imglab}
+\end{subfigure}
+\begin{subfigure}[b]{0.3\textwidth}
+\label{la2}
+\caption{Imagen en espacio CIELAB}
+\includegraphics[width=\textwidth]{imglabreal}
+\end{subfigure}
+\begin{subfigure}[b]{0.3\textwidth}
+\label{la3}
+\caption{Imagen con Clustering fallido}
+\includegraphics[width=\textwidth]{imgclusters}
+\end{subfigure}
+
+\caption{[gSLIC] Clustering fallido y imagen en CIELAB.}
+\end{figure}
+
+\subsection{Primer Intento}
+En el proceso de llevar el algoritmo SLIC a GPU, nos encontramos con m\'as problemas de los esperados, especialmente por el manejo de la informaci\'on diferente en los 2 espacios. Aqu\'i tenemos una primera prueba de los resultados de convertir la imagen al espacio CIELAB con GPU y tambi\'en clusterizar la imagen (sin \'exito), ver Figura 4.
+
+\subsection{Resultado Final}
+Luego de adecuar bien el proceso de pasar el algoritmo a gSLIC, lo adecuamos para su funcionamiento en videos, para verificar su desempe\~no en tiempo real.
+
+Como indicaba el paper de Carl Yuheng Ren y Ian Reid\cite{YHRen_gSLIC}, gSLIC incrementa la velocidad del algoritmo SLIC en 20x, lo cual no es a\'un lo suficiente para una aplicaci\'on en tiempo real.
+
+Los ejemplos est\'an disponibles en los siguientes enlaces, mostrando como corremos el programa en nuestras computadoras:
+
+\begin{itemize}
+\item \url{https://www.youtube.com/watch?v=OQYFRcEOW_U}
+\item \url{https://www.youtube.com/watch?v=cbTpCgG3804}
+\end{itemize}
+
+Por motivos de rapidez la representaci\'on de los superpixeles fueron cambiados de bordes a color promedio por cada superpixel. El proceso de bordes era lineal y dependia mucho de CPU, por lo que era ineficiente hacerlo en GPU.
 
 
 \bibliography{mybib}{}
